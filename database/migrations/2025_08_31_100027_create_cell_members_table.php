@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('cell_members', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('church_attender_id');
+            $table->unsignedBigInteger('church_attender_id')->unique();
             $table->unsignedBigInteger('cell_group_id');
             $table->unsignedBigInteger('training_progress_id');
             $table->timestamps();
