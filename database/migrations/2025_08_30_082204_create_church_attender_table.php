@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->string('phone_number')->nullable();
             $table->string('social_media_account')->nullable();
-            $table->enum('sex', ['male', 'female']);
+            $table->enum('network', ['mens', 'womens']);
             $table->string('present_address');
             $table->string('permanent_address');
             $table->string('civil_status');
