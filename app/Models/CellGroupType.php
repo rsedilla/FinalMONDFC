@@ -8,6 +8,7 @@ class CellGroupType extends Model
 {
     protected $fillable = [
         'name',
+        'description',
     ];
 
     /**
