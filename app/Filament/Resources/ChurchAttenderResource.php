@@ -197,9 +197,6 @@ class ChurchAttenderResource extends Resource
                 Tables\Columns\TextColumn::make('first_name')
                     ->searchable()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('middle_name')
-                    ->searchable()
-                    ->sortable(),
                 Tables\Columns\TextColumn::make('last_name')
                     ->searchable()
                     ->sortable(),
