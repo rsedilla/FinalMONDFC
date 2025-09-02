@@ -17,7 +17,7 @@ class TrainingProgressResource extends Resource
 {
     protected static ?string $model = TrainingProgress::class;
     protected static ?string $navigationIcon = 'heroicon-o-chart-bar';
-    protected static ?int $navigationSort = 6;
+    protected static ?int $navigationSort = 41;
     protected static ?string $navigationLabel = 'Training Progress';
 
     public static function form(Form $form): Form
