@@ -37,19 +37,24 @@ class CellGroupResource extends Resource
                 Forms\Components\Section::make('Cell Group Information')
                     ->description('Basic information about the cell group')
                     ->schema([
-                        Forms\Components\Select::make('cell_group_type_id')
-                            ->relationship('cellGroupType', 'name')
-                            ->required()
-                            ->searchable()
-                            ->preload()
-                            ->createOptionForm([
-                                Forms\Components\TextInput::make('name')
-                                    ->required()
-                                    ->maxLength(255)
-                                    ->placeholder('e.g., Men\'s Group, Women\'s Group, Youth Group'),
-                            ]),
-                        
                         Forms\Components\Grid::make(2)
+                            ->schema([
+                                Forms\Components\TextInput::make('cell_leader', 'Cell Leader')
+                                    ->maxLength(255)
+                                    ->placeholder('Enter cell leader name'),
+                                Forms\Components\Select::make('cell_group_type_id')
+                                    ->relationship('cellGroupType', 'name')
+                                    ->required()
+                                    ->searchable()
+                                    ->preload()
+                                    ->createOptionForm([
+                                        Forms\Components\TextInput::make('name')
+                                            ->required()
+                                            ->maxLength(255)
+                                            ->placeholder('e.g., Men\'s Group, Women\'s Group, Youth Group'),
+                                    ]),
+                            ]),
+                        Forms\Components\Grid::make(3)
                             ->schema([
                                 Forms\Components\Select::make('meeting_day')
                                     ->options([
@@ -63,17 +68,15 @@ class CellGroupResource extends Resource
                                     ])
                                     ->required()
                                     ->searchable(),
-                                
                                 Forms\Components\TimePicker::make('meeting_time')
                                     ->required()
                                     ->seconds(false),
+                                Forms\Components\Textarea::make('location')
+                                    ->required()
+                                    ->maxLength(500)
+                                    ->rows(3)
+                                    ->placeholder('Enter full address or meeting location details'),
                             ]),
-                        
-                        Forms\Components\Textarea::make('location')
-                            ->required()
-                            ->maxLength(500)
-                            ->rows(3)
-                            ->placeholder('Enter full address or meeting location details'),
                     ]),
             ]);
     }
