@@ -84,8 +84,7 @@ class ChurchAttenderResource extends Resource
                                         return NetworkLeader::all()->pluck('leader_name', 'leader_name')->toArray();
                                     })
                                     ->searchable()
-                                    ->required()
-                                    ->disabled(fn ($livewire) => !($livewire instanceof \App\Filament\Resources\ChurchAttenderResource\Pages\EditChurchAttender)),
+                                    ->required(),
                             ]),
                         Forms\Components\Textarea::make('present_address', 'Present Address')
                             ->required()

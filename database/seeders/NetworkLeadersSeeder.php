@@ -15,6 +15,7 @@ class NetworkLeadersSeeder extends Seeder
         $mens = [
             'Albert Castro',
             'Daniel Oriel Ballano',
+            'Oriel Ballano',
             'Darwin Dumael',
             'David Herald Felicelda',
             'Jeffrey Nel Figueroa',
