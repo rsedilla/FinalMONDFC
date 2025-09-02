@@ -192,7 +192,7 @@ class ChurchAttenderResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->query(ChurchAttender::query()->notPromoted()) // Only show non-promoted members
+            // Show all church attenders, including promoted
             ->columns([
                 Tables\Columns\TextColumn::make('first_name')
                     ->searchable()
@@ -254,6 +254,11 @@ class ChurchAttenderResource extends Resource
                     ->icon('heroicon-o-arrow-up-circle')
                     ->color('success')
                     ->visible(function ($record) {
+                        // Only show for non-promoted attenders who meet all requirements
+                        if ($record->isPromoted()) {
+                            return false;
+                        }
+                        
                         $promotionService = app(ChurchMemberPromotionService::class);
                         return $promotionService->canPromoteToCellMember($record);
                     })
