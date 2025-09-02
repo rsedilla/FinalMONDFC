@@ -53,10 +53,25 @@ class SuynlLessonCompletionsRelationManager extends RelationManager
                 //
             ])
             ->headerActions([
-                Tables\Actions\CreateAction::make(),
+                Tables\Actions\CreateAction::make()
+                    ->using(function (array $data): \App\Models\SuynlLessonCompletion {
+                        // Use updateOrCreate to prevent duplicates
+                        return \App\Models\SuynlLessonCompletion::updateOrCreate(
+                            [
+                                'church_attender_id' => $this->ownerRecord->id,
+                                'lesson_number' => $data['lesson_number'],
+                            ],
+                            [
+                                'completion_date' => $data['completion_date'],
+                                'notes' => $data['notes'] ?? null,
+                            ]
+                        );
+                    })
+                    ->successNotificationTitle('Lesson completion saved successfully'),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\DeleteAction::make(),
             ]);
     }
 }
