@@ -105,7 +105,6 @@ class ChurchAttenderResource extends Resource
                     ->schema([
                         Forms\Components\Repeater::make('suynlLessonCompletions')
                             ->relationship()
-                            ->disabled(fn ($livewire) => !($livewire instanceof \App\Filament\Resources\ChurchAttenderResource\Pages\EditChurchAttender))
                             ->schema([
                                 Forms\Components\Grid::make(2)
                                     ->schema([
@@ -114,18 +113,17 @@ class ChurchAttenderResource extends Resource
                                             ->numeric()
                                             ->minValue(1)
                                             ->maxValue(10)
-                                            ->placeholder('1-10')
-                                            ->disabled(fn ($livewire) => !($livewire instanceof \App\Filament\Resources\ChurchAttenderResource\Pages\EditChurchAttender)),
+                                            ->placeholder('Lesson # (1-10)'),
                                         Forms\Components\DatePicker::make('completion_date')
                                             ->required()
-                                            ->native(false)
-                                            ->disabled(fn ($livewire) => !($livewire instanceof \App\Filament\Resources\ChurchAttenderResource\Pages\EditChurchAttender)),
+                                            ->native(false),
                                     ])
                             ])
                             ->addActionLabel('+ Add Lesson')
                             ->defaultItems(0)
                             ->maxItems(10)
-                            ->itemLabel(fn (array $state): ?string => isset($state['lesson_number']) ? "Lesson #{$state['lesson_number']}" : 'New Lesson'),
+                            ->reorderable(false)
+                            ->itemLabel(fn (array $state): ?string => isset($state['lesson_number']) ? "Lesson #{$state['lesson_number']}" : null),
                     ]),
                 
                 Forms\Components\Section::make('Sunday Service Completions')
