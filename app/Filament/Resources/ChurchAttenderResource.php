@@ -192,7 +192,7 @@ class ChurchAttenderResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            // Show all church attenders, including promoted
+            ->query(ChurchAttender::query()->notPromoted()) // Only show non-promoted members
             ->columns([
                 Tables\Columns\TextColumn::make('first_name')
                     ->searchable()
