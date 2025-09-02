@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Seeder;
 use App\Models\CellGroupType;
 
@@ -13,38 +14,26 @@ class CellGroupTypeSeeder extends Seeder
      */
     public function run(): void
     {
+    // Remove all existing types to ensure only the specified ones remain
+        // Remove all cell groups to avoid foreign key constraint
+        DB::table('cell_groups')->delete();
+
+        // Delete all cell group types except the ones we want to keep
+        DB::table('cell_group_types')
+            ->whereNotIn('name', ['Open Cell', 'Discipleship Cell', 'G12 Cell'])
+            ->delete();
         $cellGroupTypes = [
             [
-                'name' => 'Men\'s Group',
-                'description' => 'Cell groups specifically for men to focus on men\'s ministry and discipleship',
+                'name' => 'Open Cell',
+                'description' => 'A cell group open to all members for general fellowship and discipleship',
             ],
             [
-                'name' => 'Women\'s Group',
-                'description' => 'Cell groups specifically for women to focus on women\'s ministry and fellowship',
+                'name' => 'Discipleship Cell',
+                'description' => 'A cell group focused on discipleship and spiritual growth',
             ],
             [
-                'name' => 'Youth Group',
-                'description' => 'Cell groups for teenagers and young adults (ages 13-25)',
-            ],
-            [
-                'name' => 'Married Couples',
-                'description' => 'Cell groups for married couples to strengthen family relationships and marriage',
-            ],
-            [
-                'name' => 'Young Professionals',
-                'description' => 'Cell groups for working professionals and young career-focused individuals',
-            ],
-            [
-                'name' => 'Senior Saints',
-                'description' => 'Cell groups for senior church members and retirees',
-            ],
-            [
-                'name' => 'Mixed Group',
-                'description' => 'Mixed gender cell groups for general fellowship and discipleship',
-            ],
-            [
-                'name' => 'Singles Group',
-                'description' => 'Cell groups for single individuals to build community and support',
+                'name' => 'G12 Cell',
+                'description' => 'A cell group following the G12 vision and structure',
             ],
         ];
 
