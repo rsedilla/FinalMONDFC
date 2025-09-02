@@ -13,6 +13,8 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Database\Eloquent\Model;
+use App\Services\ChurchMemberPromotionService;
+use App\Services\PromotionRequirementsChecker;
 
 class ChurchAttenderResource extends Resource
 {
@@ -190,6 +192,7 @@ class ChurchAttenderResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->query(ChurchAttender::query()->notPromoted()) // Only show non-promoted members
             ->columns([
                 Tables\Columns\TextColumn::make('first_name')
                     ->searchable()
@@ -209,13 +212,28 @@ class ChurchAttenderResource extends Resource
                     }),
                 Tables\Columns\TextColumn::make('suynl_progress')
                     ->label('SUYNL')
-                    ->getStateUsing(fn ($record) => $record->suynlLessonCompletions()->count() . '/10'),
-                    Tables\Columns\TextColumn::make('sunday_service_progress')
-                        ->label('DCC')
-                        ->getStateUsing(fn ($record) => $record->sundayServiceCompletions()->count() . '/4'),
-                    Tables\Columns\TextColumn::make('cell_group_progress')
-                        ->label('CG')
-                        ->getStateUsing(fn ($record) => $record->cellGroupLessonCompletions()->count() . '/4'),
+                    ->getStateUsing(fn ($record) => $record->suynlLessonCompletions()->count() . '/10')
+                    ->badge()
+                    ->color(fn ($record) => $record->suynlLessonCompletions()->count() >= 10 ? 'success' : 'warning'),
+                Tables\Columns\TextColumn::make('sunday_service_progress')
+                    ->label('DCC')
+                    ->getStateUsing(fn ($record) => $record->sundayServiceCompletions()->count() . '/4')
+                    ->badge()
+                    ->color(fn ($record) => $record->sundayServiceCompletions()->count() >= 4 ? 'success' : 'warning'),
+                Tables\Columns\TextColumn::make('cell_group_progress')
+                    ->label('CG')
+                    ->getStateUsing(fn ($record) => $record->cellGroupLessonCompletions()->count() . '/4')
+                    ->badge()
+                    ->color(fn ($record) => $record->cellGroupLessonCompletions()->count() >= 4 ? 'success' : 'warning'),
+                Tables\Columns\TextColumn::make('promotion_status')
+                    ->label('Status')
+                    ->getStateUsing(function ($record) {
+                        $checker = app(PromotionRequirementsChecker::class);
+                        $requirements = $checker->checkCellMemberRequirements($record);
+                        return $checker->getRequirementsSummary($requirements);
+                    })
+                    ->html()
+                    ->wrap(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -234,6 +252,45 @@ class ChurchAttenderResource extends Resource
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\Action::make('promote_to_cell_member')
+                    ->label('Promote to Cell Member')
+                    ->icon('heroicon-o-arrow-up-circle')
+                    ->color('success')
+                    ->visible(function ($record) {
+                        $promotionService = app(ChurchMemberPromotionService::class);
+                        return $promotionService->canPromoteToCellMember($record);
+                    })
+                    ->form([
+                        Forms\Components\Select::make('cell_group_id')
+                            ->options(\App\Models\CellGroup::with('cellGroupType')->get()->pluck('display_name', 'id'))
+                            ->required()
+                            ->searchable()
+                            ->placeholder('Select a cell group...'),
+                    ])
+                    ->action(function ($record, array $data) {
+                        $promotionService = app(ChurchMemberPromotionService::class);
+                        
+                        try {
+                            $promotionService->promoteToCellMember($record, $data['cell_group_id']);
+                            
+                            \Filament\Notifications\Notification::make()
+                                ->title('Promotion Successful!')
+                                ->body($record->full_name . ' has been promoted to Cell Member.')
+                                ->success()
+                                ->send();
+                                
+                        } catch (\Exception $e) {
+                            \Filament\Notifications\Notification::make()
+                                ->title('Promotion Failed')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    })
+                    ->requiresConfirmation()
+                    ->modalHeading('Promote to Cell Member')
+                    ->modalDescription(fn ($record) => 'Are you sure you want to promote ' . $record->full_name . ' to Cell Member? This action will move them from the Church Attenders list to the Cell Members list.')
+                    ->modalSubmitActionLabel('Promote'),
             ])
             ->recordUrl(
                 fn (Model $record): string => Pages\ViewChurchAttender::getUrl([$record->id])

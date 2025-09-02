@@ -24,11 +24,15 @@ class ChurchAttender extends Model
         'present_address',
         'permanent_address',
         'civil_status_id',
-        'birthday'
+        'birthday',
+        'promoted_at',
+        'promoted_to',
+        'promoted_to_id',
     ];
 
     protected $casts = [
         'birthday' => 'date',
+        'promoted_at' => 'datetime',
     ];
 
     public function trainingProgresses()
@@ -54,5 +58,61 @@ class ChurchAttender extends Model
     public function getFullNameAttribute()
     {
         return trim($this->first_name . ' ' . $this->middle_name . ' ' . $this->last_name);
+    }
+
+    // Scopes for filtering members by promotion status
+
+    /**
+     * Scope to get only non-promoted church attenders
+     */
+    public function scopeNotPromoted($query)
+    {
+        return $query->whereNull('promoted_at');
+    }
+
+    /**
+     * Scope to get only promoted church attenders
+     */
+    public function scopePromoted($query)
+    {
+        return $query->whereNotNull('promoted_at');
+    }
+
+    /**
+     * Scope to get church attenders promoted to a specific role
+     */
+    public function scopePromotedTo($query, string $role)
+    {
+        return $query->where('promoted_to', $role);
+    }
+
+    // Helper methods for promotion
+
+    /**
+     * Check if this church attender has been promoted
+     */
+    public function isPromoted(): bool
+    {
+        return !is_null($this->promoted_at);
+    }
+
+    /**
+     * Get the promotion status
+     */
+    public function getPromotionStatus(): string
+    {
+        if (!$this->isPromoted()) {
+            return 'Active Church Attender';
+        }
+
+        return 'Promoted to ' . ucwords(str_replace('_', ' ', $this->promoted_to)) . ' on ' . $this->promoted_at->format('M j, Y');
+    }
+
+    /**
+     * Relationship to cell member record (if promoted)
+     */
+    public function cellMember()
+    {
+        return $this->hasOne(CellMember::class);
     }
 }
