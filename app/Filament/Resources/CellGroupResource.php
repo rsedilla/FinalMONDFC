@@ -85,13 +85,16 @@ class CellGroupResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('cell_leader')
+                    ->label('Cell Leader')
+                    ->searchable()
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('cellGroupType.name')
                     ->label('Type')
                     ->searchable()
                     ->sortable()
                     ->badge()
                     ->color('primary'),
-                
                 Tables\Columns\TextColumn::make('meeting_day')
                     ->label('Day')
                     ->searchable()
@@ -107,12 +110,10 @@ class CellGroupResource extends Resource
                         'Saturday' => 'gray',
                         default => 'gray',
                     }),
-                
                 Tables\Columns\TextColumn::make('meeting_time')
                     ->label('Time')
                     ->time('H:i')
                     ->sortable(),
-                
                 Tables\Columns\TextColumn::make('location')
                     ->label('Location')
                     ->searchable()
