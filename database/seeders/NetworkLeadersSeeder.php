@@ -20,7 +20,7 @@ class NetworkLeadersSeeder extends Seeder
             'Jeffrey Nel Figueroa',
             'John Benz Samson',
             'John Isaac Lausin',
-            'John Michael Roque',
+            'Michael Roque',
             'Karl Nicholas Lisondra',
             'Raymond Sedilla',
             'Romeo Malificiar',
@@ -49,6 +49,7 @@ class NetworkLeadersSeeder extends Seeder
             DB::table('network_leaders')->insert([
                 'church_attender_id' => null, // Update with actual attender IDs if available
                 'network' => 'mens',
+                'leader_name' => $name,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
@@ -57,6 +58,7 @@ class NetworkLeadersSeeder extends Seeder
             DB::table('network_leaders')->insert([
                 'church_attender_id' => null, // Update with actual attender IDs if available
                 'network' => 'womens',
+                'leader_name' => $name,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);

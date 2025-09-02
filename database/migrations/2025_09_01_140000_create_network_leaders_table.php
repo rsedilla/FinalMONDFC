@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('network_leaders', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('church_attender_id');
+            $table->unsignedBigInteger('church_attender_id')->nullable();
             $table->enum('network', ['mens', 'womens']);
             $table->timestamps();
 

@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\ChurchAttenderResource\Pages;
 use App\Filament\Resources\ChurchAttenderResource\RelationManagers;
 use App\Models\ChurchAttender;
+use App\Models\NetworkLeader;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -79,10 +80,10 @@ class ChurchAttenderResource extends Resource
                                     ->placeholder('Facebook, Instagram, etc.')
                                     ->disabled(fn ($livewire) => !($livewire instanceof \App\Filament\Resources\ChurchAttenderResource\Pages\EditChurchAttender)),
                                 Forms\Components\Select::make('network', 'Network')
-                                    ->options([
-                                        'mens' => 'Mens',
-                                        'womens' => 'Womens'
-                                    ])
+                                    ->options(function () {
+                                        return NetworkLeader::all()->pluck('leader_name', 'leader_name')->toArray();
+                                    })
+                                    ->searchable()
                                     ->required()
                                     ->disabled(fn ($livewire) => !($livewire instanceof \App\Filament\Resources\ChurchAttenderResource\Pages\EditChurchAttender)),
                             ]),
