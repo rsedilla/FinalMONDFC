@@ -5,7 +5,6 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\CellGroupResource\Pages;
 use App\Filament\Resources\CellGroupResource\RelationManagers;
 use App\Models\CellGroup;
-use App\Models\CellGroupType;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;

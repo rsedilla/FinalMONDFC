@@ -29,6 +29,9 @@ class CellGroupTypeResource extends Resource
 
     protected static ?string $navigationGroup = 'Church Management';
 
+    // Hide from navigation
+    protected static bool $shouldRegisterNavigation = false;
+
     public static function form(Form $form): Form
     {
         return $form
