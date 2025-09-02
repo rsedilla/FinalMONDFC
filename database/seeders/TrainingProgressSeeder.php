@@ -10,7 +10,6 @@ class TrainingProgressSeeder extends Seeder
     public function run(): void
     {
         $types = [
-            'SUYNL',
             'LIFECLASS',
             'ENCOUNTER',
             'SOL 1',
