@@ -37,17 +37,17 @@ class ChurchMemberPromotionService
         // Use database transaction for data integrity
         return DB::transaction(function () use ($attender, $cellGroupId) {
             try {
-                // Create training progress record for cell member
+                // Create LIFECLASS training progress record for the promoted cell member
+                $lifeclassTypeId = $this->getLifeclassTrainingTypeId();
                 $trainingProgress = TrainingProgress::create([
                     'church_attender_id' => $attender->id,
-                    'training_progress_type_id' => $this->getCellMemberTrainingTypeId(),
+                    'training_progress_type_id' => $lifeclassTypeId,
                 ]);
 
                 // Create cell member record
                 $cellMember = CellMember::create([
                     'church_attender_id' => $attender->id,
                     'cell_group_id' => $cellGroupId,
-                    'training_progress_id' => $trainingProgress->id,
                 ]);
 
                 // Mark church attender as promoted
@@ -58,10 +58,11 @@ class ChurchMemberPromotionService
                 ]);
 
                 // Log the promotion
-                Log::info('Church attender promoted to cell member', [
+                Log::info('Church attender promoted to cell member with LIFECLASS training', [
                     'church_attender_id' => $attender->id,
                     'cell_member_id' => $cellMember->id,
                     'cell_group_id' => $cellGroupId,
+                    'training_progress_id' => $trainingProgress->id,
                     'promoted_at' => now(),
                 ]);
 
@@ -152,10 +153,6 @@ class ChurchMemberPromotionService
                 if ($attender->promoted_to === 'cell_member' && $attender->promoted_to_id) {
                     $cellMember = CellMember::find($attender->promoted_to_id);
                     if ($cellMember) {
-                        // Delete associated training progress
-                        if ($cellMember->training_progress_id) {
-                            TrainingProgress::find($cellMember->training_progress_id)?->delete();
-                        }
                         $cellMember->delete();
                     }
                 }
@@ -185,19 +182,14 @@ class ChurchMemberPromotionService
     }
 
     /**
-     * Get the training progress type ID for cell members
+     * Get the training progress type ID for LIFECLASS
      */
-    private function getCellMemberTrainingTypeId(): int
+    private function getLifeclassTrainingTypeId(): int
     {
-        // Assuming there's a training progress type for cell members
-        // You may need to create this type in your seeder
-        $type = \App\Models\TrainingProgressType::where('name', 'Cell Member Training')->first();
+        $type = \App\Models\TrainingProgressType::where('name', 'LIFECLASS')->first();
         
         if (!$type) {
-            $type = \App\Models\TrainingProgressType::create([
-                'name' => 'Cell Member Training',
-                'description' => 'Training progress for church members who have been promoted to cell members',
-            ]);
+            throw new \Exception('LIFECLASS training progress type not found. Please ensure it exists in the training_progress_types table.');
         }
 
         return $type->id;
