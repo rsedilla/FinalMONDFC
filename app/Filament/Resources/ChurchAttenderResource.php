@@ -264,10 +264,21 @@ class ChurchAttenderResource extends Resource
                     })
                     ->form([
                         Forms\Components\Select::make('cell_group_id')
-                            ->options(\App\Models\CellGroup::with('cellGroupType')->get()->pluck('display_name', 'id'))
+                            ->options(function () {
+                                return \App\Models\CellGroup::with(['cellGroupType', 'leader'])->get()
+                                    ->mapWithKeys(function ($cellGroup) {
+                                        $groupType = $cellGroup->cellGroupType ? $cellGroup->cellGroupType->name : 'Unknown Type';
+                                        $leaderName = $cellGroup->getLeaderNameAttribute();
+                                        $cellGroupId = $cellGroup->CellGroupID ?: 'No ID';
+                                        
+                                        $displayText = "{$groupType} - {$leaderName} - {$cellGroupId}";
+                                        
+                                        return [$cellGroup->id => $displayText];
+                                    })->toArray();
+                            })
                             ->required()
                             ->searchable()
-                            ->placeholder('Select a cell group...'),
+                            ->placeholder('Search cell groups by type, leader name, or CellGroupID...'),
                     ])
                     ->action(function ($record, array $data) {
                         $promotionService = app(ChurchMemberPromotionService::class);

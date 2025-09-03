@@ -5,6 +5,8 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\CellGroupResource\Pages;
 use App\Filament\Resources\CellGroupResource\RelationManagers;
 use App\Models\CellGroup;
+use App\Models\CellLeader;
+use App\Models\G12Leader;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -12,6 +14,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\DB;
 use Filament\Support\Enums\FontWeight;
 
 class CellGroupResource extends Resource
@@ -39,9 +42,56 @@ class CellGroupResource extends Resource
                     ->schema([
                         Forms\Components\Grid::make(2)
                             ->schema([
-                                Forms\Components\TextInput::make('cell_leader', 'Cell Leader')
-                                    ->maxLength(255)
-                                    ->placeholder('Enter cell leader name'),
+                                Forms\Components\Select::make('leader_selection')
+                                    ->label('Cell Leader Name')
+                                    ->placeholder('Select a leader')
+                                    ->searchable()
+                                    ->options(function () {
+                                        $options = [];
+                                        
+                                        // Get Cell Leaders
+                                        $cellLeaders = CellLeader::with('churchAttender')->get();
+                                        foreach ($cellLeaders as $leader) {
+                                            if ($leader->churchAttender) {
+                                                $options["cell_leader_{$leader->id}"] = $leader->churchAttender->getFullNameAttribute() . ' (Cell Leader)';
+                                            }
+                                        }
+                                        
+                                        // Get G12 Leaders
+                                        $g12Leaders = G12Leader::with('churchAttender')->get();
+                                        foreach ($g12Leaders as $leader) {
+                                            if ($leader->churchAttender) {
+                                                $options["g12_leader_{$leader->id}"] = $leader->churchAttender->getFullNameAttribute() . ' (G12 Leader)';
+                                            }
+                                        }
+                                        
+                                        return $options;
+                                    })
+                                    ->afterStateUpdated(function ($state, $set) {
+                                        if (!$state) {
+                                            $set('leader_id', null);
+                                            $set('leader_type', null);
+                                            return;
+                                        }
+                                        
+                                        $parts = explode('_', $state);
+                                        if (count($parts) >= 3) {
+                                            $type = $parts[0] . '_' . $parts[1]; // cell_leader or g12_leader
+                                            $id = $parts[2];
+                                            
+                                            if ($type === 'cell_leader') {
+                                                $set('leader_id', $id);
+                                                $set('leader_type', CellLeader::class);
+                                            } elseif ($type === 'g12_leader') {
+                                                $set('leader_id', $id);
+                                                $set('leader_type', G12Leader::class);
+                                            }
+                                        }
+                                    })
+                                    ->dehydrated(false),
+                                
+                                Forms\Components\Hidden::make('leader_id'),
+                                Forms\Components\Hidden::make('leader_type'),
                                 Forms\Components\Select::make('cell_group_type_id')
                                     ->relationship('cellGroupType', 'name')
                                     ->required()
@@ -85,10 +135,13 @@ class CellGroupResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('cell_leader')
+                Tables\Columns\TextColumn::make('leader_name')
                     ->label('Cell Leader')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->getStateUsing(function ($record) {
+                        return $record->getLeaderNameAttribute();
+                    }),
                 Tables\Columns\TextColumn::make('cellGroupType.name')
                     ->label('Type')
                     ->searchable()
@@ -189,7 +242,7 @@ class CellGroupResource extends Resource
     public static function getRelations(): array
     {
         return [
-            // TODO: Add relation managers when created
+            RelationManagers\CellMembersRelationManager::class,
         ];
     }
 
@@ -198,6 +251,7 @@ class CellGroupResource extends Resource
         return [
             'index' => Pages\ListCellGroups::route('/'),
             'create' => Pages\CreateCellGroup::route('/create'),
+            'view' => Pages\ViewCellGroup::route('/{record}'),
             'edit' => Pages\EditCellGroup::route('/{record}/edit'),
         ];
     }

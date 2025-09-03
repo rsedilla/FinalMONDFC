@@ -10,7 +10,8 @@ class TrainingProgressSeeder extends Seeder
     public function run(): void
     {
         $types = [
-            'LIFECLASS',
+            'SUYNL',
+            'LIFE CLASS',
             'ENCOUNTER',
             'SOL 1',
             'SOL 2',
@@ -18,11 +19,14 @@ class TrainingProgressSeeder extends Seeder
             'SOL GRAD',
         ];
 
-        foreach ($types as $type) {
+        foreach ($types as $index => $type) {
             DB::table('training_progress_types')->updateOrInsert([
                 'name' => $type
             ], [
-                'name' => $type
+                'id' => $index + 1,
+                'name' => $type,
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
         }
     }

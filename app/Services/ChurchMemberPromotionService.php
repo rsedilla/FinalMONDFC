@@ -37,17 +37,28 @@ class ChurchMemberPromotionService
         // Use database transaction for data integrity
         return DB::transaction(function () use ($attender, $cellGroupId) {
             try {
-                // Create LIFECLASS training progress record for the promoted cell member
-                $lifeclassTypeId = $this->getLifeclassTrainingTypeId();
-                $trainingProgress = TrainingProgress::create([
-                    'church_attender_id' => $attender->id,
-                    'training_progress_type_id' => $lifeclassTypeId,
-                ]);
+                // Update existing training progress to LIFE CLASS (ID: 2) instead of creating new
+                $existingProgress = TrainingProgress::where('church_attender_id', $attender->id)->first();
+                
+                if ($existingProgress) {
+                    // Update from SUYNL (ID: 1) to LIFE CLASS (ID: 2)
+                    $existingProgress->update([
+                        'training_progress_type_id' => 2, // LIFE CLASS
+                    ]);
+                    $trainingProgress = $existingProgress;
+                } else {
+                    // If no existing progress, create new one with LIFE CLASS
+                    $trainingProgress = TrainingProgress::create([
+                        'church_attender_id' => $attender->id,
+                        'training_progress_type_id' => 2, // LIFE CLASS
+                    ]);
+                }
 
                 // Create cell member record
                 $cellMember = CellMember::create([
                     'church_attender_id' => $attender->id,
                     'cell_group_id' => $cellGroupId,
+                    'training_progress_id' => $trainingProgress->id,
                 ]);
 
                 // Mark church attender as promoted
@@ -58,11 +69,12 @@ class ChurchMemberPromotionService
                 ]);
 
                 // Log the promotion
-                Log::info('Church attender promoted to cell member with LIFECLASS training', [
+                Log::info('Church attender promoted to cell member with LIFE CLASS training', [
                     'church_attender_id' => $attender->id,
                     'cell_member_id' => $cellMember->id,
                     'cell_group_id' => $cellGroupId,
                     'training_progress_id' => $trainingProgress->id,
+                    'training_progress_type_id' => 2, // LIFE CLASS
                     'promoted_at' => now(),
                 ]);
 
@@ -179,19 +191,5 @@ class ChurchMemberPromotionService
                 throw $e;
             }
         });
-    }
-
-    /**
-     * Get the training progress type ID for LIFECLASS
-     */
-    private function getLifeclassTrainingTypeId(): int
-    {
-        $type = \App\Models\TrainingProgressType::where('name', 'LIFECLASS')->first();
-        
-        if (!$type) {
-            throw new \Exception('LIFECLASS training progress type not found. Please ensure it exists in the training_progress_types table.');
-        }
-
-        return $type->id;
     }
 }
