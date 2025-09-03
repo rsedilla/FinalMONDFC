@@ -18,7 +18,7 @@
                             {{ $leaderName }}'s Team Members
                         </h3>
                         <p class="fi-section-header-description text-sm text-gray-500 dark:text-gray-400">
-                            Click on member cards to toggle attendance status. Green = Present, Red = Absent
+                            Click on member cards to toggle attendance status. Blue = Completed DCC, Green = Present, Red = Absent
                         </p>
                     </div>
                     <div class="flex gap-x-2">
@@ -74,16 +74,20 @@
                             @php
                                 $isPresent = $this->attendanceData[$attendee->id]['present'] ?? true;
                                 $serviceNumber = $this->attendanceData[$attendee->id]['service_number'] ?? 1;
+                                $isCompleted = $this->attendanceData[$attendee->id]['is_completed'] ?? false;
                                 $completedServices = $attendee->sundayServiceCompletions()->count();
                             @endphp
                             
                             <div 
                                 wire:click="toggleAttendance({{ $attendee->id }})"
                                 class="cursor-pointer rounded-lg border-2 p-4 transition-all hover:shadow-md
-                                    {{ $isPresent 
-                                        ? 'border-green-200 bg-green-50 dark:border-green-700 dark:bg-green-900/20' 
-                                        : 'border-red-200 bg-red-50 dark:border-red-700 dark:bg-red-900/20' 
-                                    }}"
+                                    @if($isCompleted)
+                                        border-blue-200 bg-blue-50 dark:border-blue-700 dark:bg-blue-900/20
+                                    @elseif($isPresent)
+                                        border-green-200 bg-green-50 dark:border-green-700 dark:bg-green-900/20
+                                    @else
+                                        border-red-200 bg-red-50 dark:border-red-700 dark:bg-red-900/20
+                                    @endif"
                             >
                                 <div class="flex items-start justify-between">
                                     <div class="flex-1">
@@ -107,24 +111,36 @@
                                                 DCC: {{ $completedServices }}/4
                                             </span>
                                             
-                                            <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
-                                                {{ $isPresent 
-                                                    ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' 
-                                                    : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400' 
-                                                }}">
-                                                {{ $isPresent ? 'Present' : 'Absent' }}
-                                            </span>
+                                            @if($isCompleted)
+                                                <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
+                                                    Completed
+                                                </span>
+                                            @else
+                                                <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
+                                                    {{ $isPresent 
+                                                        ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' 
+                                                        : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400' 
+                                                    }}">
+                                                    {{ $isPresent ? 'Present' : 'Absent' }}
+                                                </span>
+                                            @endif
                                         </div>
 
-                                        @if($completedServices < 4)
+                                        @if(!$isCompleted)
                                             <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
                                                 Next Service: #{{ $serviceNumber }}
+                                            </div>
+                                        @else
+                                            <div class="mt-2 text-xs text-blue-600 dark:text-blue-400">
+                                                All DCC services completed ✓
                                             </div>
                                         @endif
                                     </div>
                                     
                                     <div class="ml-4">
-                                        @if($isPresent)
+                                        @if($isCompleted)
+                                            <x-heroicon-s-check-badge class="h-6 w-6 text-blue-500" />
+                                        @elseif($isPresent)
                                             <x-heroicon-s-check-circle class="h-6 w-6 text-green-500" />
                                         @else
                                             <x-heroicon-s-x-circle class="h-6 w-6 text-red-500" />

@@ -112,13 +112,9 @@ class DccBulkAttendance extends Page
             ->with(['churchAttender.sundayServiceCompletions'])
             ->get();
 
-        // Filter to only those who need DCC services (< 4 completed)
+        // Show all team members, regardless of DCC completion status
         $this->attendees = $cellMembers->filter(function ($cellMember) {
-            if (!$cellMember->churchAttender) {
-                return false;
-            }
-            $completedServices = $cellMember->churchAttender->sundayServiceCompletions()->count();
-            return $completedServices < 4;
+            return $cellMember->churchAttender !== null;
         })->map(function ($cellMember) {
             return $cellMember->churchAttender;
         })->sortBy('first_name');
@@ -126,9 +122,11 @@ class DccBulkAttendance extends Page
         // Initialize attendance data for all members as present
         $this->attendanceData = [];
         foreach ($this->attendees as $attendee) {
+            $completedServices = $attendee->sundayServiceCompletions()->count();
             $this->attendanceData[$attendee->id] = [
                 'present' => true,
-                'service_number' => $attendee->sundayServiceCompletions()->count() + 1,
+                'service_number' => $completedServices < 4 ? $completedServices + 1 : 4,
+                'is_completed' => $completedServices >= 4,
             ];
         }
     }
@@ -178,33 +176,51 @@ class DccBulkAttendance extends Page
 
             $recordedCount = 0;
             $skippedCount = 0;
+            $completedCount = 0;
 
             foreach ($this->attendanceData as $attendeeId => $data) {
                 if ($data['present']) {
                     $attendee = $this->attendees->find($attendeeId);
-                    if ($attendee && $data['service_number'] <= 4) {
-                        // Check if this service number already exists
-                        $existingService = $attendee->sundayServiceCompletions()
-                            ->where('service_number', $data['service_number'])
-                            ->first();
+                    if ($attendee) {
+                        $completedServices = $attendee->sundayServiceCompletions()->count();
+                        
+                        if ($completedServices >= 4) {
+                            $completedCount++;
+                            continue; // Skip members who already completed all services
+                        }
+                        
+                        if ($data['service_number'] <= 4) {
+                            // Check if this service number already exists
+                            $existingService = $attendee->sundayServiceCompletions()
+                                ->where('service_number', $data['service_number'])
+                                ->first();
 
-                        if (!$existingService) {
-                            $attendee->sundayServiceCompletions()->create([
-                                'service_number' => $data['service_number'],
-                                'attendance_date' => $this->serviceDate,
-                                'notes' => $this->notes,
-                            ]);
-                            $recordedCount++;
-                        } else {
-                            $skippedCount++;
+                            if (!$existingService) {
+                                $attendee->sundayServiceCompletions()->create([
+                                    'service_number' => $data['service_number'],
+                                    'attendance_date' => $this->serviceDate,
+                                    'notes' => $this->notes,
+                                ]);
+                                $recordedCount++;
+                            } else {
+                                $skippedCount++;
+                            }
                         }
                     }
                 }
             }
 
+            $message = "Recorded: {$recordedCount} attendees.";
+            if ($skippedCount > 0) {
+                $message .= " Skipped: {$skippedCount} (already recorded).";
+            }
+            if ($completedCount > 0) {
+                $message .= " {$completedCount} already completed all DCC services.";
+            }
+
             \Filament\Notifications\Notification::make()
                 ->title('Attendance Submitted Successfully!')
-                ->body("Recorded: {$recordedCount} attendees. Skipped: {$skippedCount} (already recorded).")
+                ->body($message)
                 ->success()
                 ->send();
 
