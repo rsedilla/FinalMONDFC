@@ -7,15 +7,13 @@ use App\Filament\Resources\CellGroupResource\RelationManagers;
 use App\Models\CellGroup;
 use App\Models\CellLeader;
 use App\Models\G12Leader;
+use App\Services\CellGroup\CellGroupLeaderService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
-use Illuminate\Support\Facades\DB;
-use Filament\Support\Enums\FontWeight;
 
 class CellGroupResource extends Resource
 {
@@ -43,29 +41,11 @@ class CellGroupResource extends Resource
                         Forms\Components\Grid::make(2)
                             ->schema([
                                 Forms\Components\Select::make('leader_selection')
-                                    ->label('Cell Leader Name')
                                     ->placeholder('Select a leader')
                                     ->searchable()
                                     ->options(function () {
-                                        $options = [];
-                                        
-                                        // Get Cell Leaders
-                                        $cellLeaders = CellLeader::with('churchAttender')->get();
-                                        foreach ($cellLeaders as $leader) {
-                                            if ($leader->churchAttender) {
-                                                $options["cell_leader_{$leader->id}"] = $leader->churchAttender->getFullNameAttribute() . ' (Cell Leader)';
-                                            }
-                                        }
-                                        
-                                        // Get G12 Leaders
-                                        $g12Leaders = G12Leader::with('churchAttender')->get();
-                                        foreach ($g12Leaders as $leader) {
-                                            if ($leader->churchAttender) {
-                                                $options["g12_leader_{$leader->id}"] = $leader->churchAttender->getFullNameAttribute() . ' (G12 Leader)';
-                                            }
-                                        }
-                                        
-                                        return $options;
+                                        $leaderService = app(CellGroupLeaderService::class);
+                                        return $leaderService->getLeaderOptions();
                                     })
                                     ->afterStateUpdated(function ($state, $set) {
                                         if (!$state) {
@@ -74,19 +54,10 @@ class CellGroupResource extends Resource
                                             return;
                                         }
                                         
-                                        $parts = explode('_', $state);
-                                        if (count($parts) >= 3) {
-                                            $type = $parts[0] . '_' . $parts[1]; // cell_leader or g12_leader
-                                            $id = $parts[2];
-                                            
-                                            if ($type === 'cell_leader') {
-                                                $set('leader_id', $id);
-                                                $set('leader_type', CellLeader::class);
-                                            } elseif ($type === 'g12_leader') {
-                                                $set('leader_id', $id);
-                                                $set('leader_type', G12Leader::class);
-                                            }
-                                        }
+                                        $leaderService = app(CellGroupLeaderService::class);
+                                        $parsed = $leaderService->parseLeaderSelection($state);
+                                        $set('leader_id', $parsed['leader_id']);
+                                        $set('leader_type', $parsed['leader_type']);
                                     })
                                     ->dehydrated(false),
                                 
@@ -107,15 +78,10 @@ class CellGroupResource extends Resource
                         Forms\Components\Grid::make(3)
                             ->schema([
                                 Forms\Components\Select::make('meeting_day')
-                                    ->options([
-                                        'Monday' => 'Monday',
-                                        'Tuesday' => 'Tuesday',
-                                        'Wednesday' => 'Wednesday',
-                                        'Thursday' => 'Thursday',
-                                        'Friday' => 'Friday',
-                                        'Saturday' => 'Saturday',
-                                        'Sunday' => 'Sunday',
-                                    ])
+                                    ->options(function () {
+                                        $leaderService = app(CellGroupLeaderService::class);
+                                        return $leaderService->getDaysOfWeek();
+                                    })
                                     ->required()
                                     ->searchable(),
                                 Forms\Components\TimePicker::make('meeting_time')
@@ -134,109 +100,120 @@ class CellGroupResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->columns([
-                Tables\Columns\TextColumn::make('leader_name')
-                    ->label('Cell Leader')
-                    ->searchable()
-                    ->sortable()
-                    ->getStateUsing(function ($record) {
-                        return $record->getLeaderNameAttribute();
-                    }),
-                Tables\Columns\TextColumn::make('cellGroupType.name')
-                    ->label('Type')
-                    ->searchable()
-                    ->sortable()
-                    ->badge()
-                    ->color('primary'),
-                Tables\Columns\TextColumn::make('meeting_day')
-                    ->label('Day')
-                    ->searchable()
-                    ->sortable()
-                    ->badge()
-                    ->color(fn (string $state): string => match ($state) {
-                        'Sunday' => 'success',
-                        'Monday' => 'info',
-                        'Tuesday' => 'warning',
-                        'Wednesday' => 'danger',
-                        'Thursday' => 'secondary',
-                        'Friday' => 'primary',
-                        'Saturday' => 'gray',
-                        default => 'gray',
-                    }),
-                Tables\Columns\TextColumn::make('meeting_time')
-                    ->label('Time')
-                    ->time('H:i')
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('location')
-                    ->label('Location')
-                    ->searchable()
-                    ->limit(50)
-                    ->tooltip(function (Tables\Columns\TextColumn $column): ?string {
-                        $state = $column->getState();
-                        return strlen($state) > 50 ? $state : null;
-                    }),
-                
-                Tables\Columns\TextColumn::make('cell_members_count')
-                    ->label('Members')
-                    ->counts('cellMembers')
-                    ->badge()
-                    ->color('success'),
-                
-                Tables\Columns\TextColumn::make('cell_leaders_count')
-                    ->label('Leaders')
-                    ->counts('cellLeaders')
-                    ->badge()
-                    ->color('warning'),
-                
-                Tables\Columns\TextColumn::make('display_name')
-                    ->label('Full Name')
-                    ->searchable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                
-                Tables\Columns\TextColumn::make('created_at')
-                    ->label('Created')
-                    ->dateTime('M j, Y')
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-            ])
+            ->columns(self::getTableColumns())
             ->defaultSort('meeting_day')
-            ->filters([
-                Tables\Filters\SelectFilter::make('cell_group_type_id')
-                    ->label('Group Type')
-                    ->relationship('cellGroupType', 'name')
-                    ->preload(),
-                
-                Tables\Filters\SelectFilter::make('meeting_day')
-                    ->label('Meeting Day')
-                    ->options([
-                        'Monday' => 'Monday',
-                        'Tuesday' => 'Tuesday',
-                        'Wednesday' => 'Wednesday',
-                        'Thursday' => 'Thursday',
-                        'Friday' => 'Friday',
-                        'Saturday' => 'Saturday',
-                        'Sunday' => 'Sunday',
-                    ]),
-                
-                Tables\Filters\Filter::make('has_members')
-                    ->label('Has Members')
-                    ->query(fn (Builder $query): Builder => $query->has('cellMembers')),
-                
-                Tables\Filters\Filter::make('has_leaders')
-                    ->label('Has Leaders')
-                    ->query(fn (Builder $query): Builder => $query->has('cellLeaders')),
-            ])
-            ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
-            ])
+            ->filters(self::getTableFilters())
+            ->actions(self::getTableActions())
+            ->bulkActions(self::getTableBulkActions())
             ->recordUrl(null);
+    }
+
+    private static function getTableColumns(): array
+    {
+        return [
+            Tables\Columns\TextColumn::make('leader_name')
+                ->label('Cell Leader')
+                ->searchable()
+                ->sortable()
+                ->getStateUsing(fn ($record) => $record->getLeaderNameAttribute()),
+            
+            Tables\Columns\TextColumn::make('cellGroupType.name')
+                ->label('Type')
+                ->searchable()
+                ->sortable()
+                ->badge()
+                ->color('primary'),
+            
+            Tables\Columns\TextColumn::make('meeting_day')
+                ->label('Day')
+                ->searchable()
+                ->sortable()
+                ->badge()
+                ->color(function (string $state): string {
+                    $leaderService = app(CellGroupLeaderService::class);
+                    return $leaderService->getDayColors()[$state] ?? 'gray';
+                }),
+            
+            Tables\Columns\TextColumn::make('meeting_time')
+                ->label('Time')
+                ->time('H:i')
+                ->sortable(),
+            
+            Tables\Columns\TextColumn::make('location')
+                ->label('Location')
+                ->searchable()
+                ->limit(50)
+                ->tooltip(function (Tables\Columns\TextColumn $column): ?string {
+                    $state = $column->getState();
+                    return strlen($state) > 50 ? $state : null;
+                }),
+            
+            Tables\Columns\TextColumn::make('cell_members_count')
+                ->label('Members')
+                ->counts('cellMembers')
+                ->badge()
+                ->color('success'),
+            
+            Tables\Columns\TextColumn::make('cell_leaders_count')
+                ->label('Leaders')
+                ->counts('cellLeaders')
+                ->badge()
+                ->color('warning'),
+            
+            Tables\Columns\TextColumn::make('display_name')
+                ->label('Full Name')
+                ->searchable()
+                ->toggleable(isToggledHiddenByDefault: true),
+            
+            Tables\Columns\TextColumn::make('created_at')
+                ->label('Created')
+                ->dateTime('M j, Y')
+                ->sortable()
+                ->toggleable(isToggledHiddenByDefault: true),
+        ];
+    }
+
+    private static function getTableFilters(): array
+    {
+        return [
+            Tables\Filters\SelectFilter::make('cell_group_type_id')
+                ->label('Group Type')
+                ->relationship('cellGroupType', 'name')
+                ->preload(),
+            
+            Tables\Filters\SelectFilter::make('meeting_day')
+                ->label('Meeting Day')
+                ->options(function () {
+                    $leaderService = app(CellGroupLeaderService::class);
+                    return $leaderService->getDaysOfWeek();
+                }),
+            
+            Tables\Filters\Filter::make('has_members')
+                ->label('Has Members')
+                ->query(fn (Builder $query): Builder => $query->has('cellMembers')),
+            
+            Tables\Filters\Filter::make('has_leaders')
+                ->label('Has Leaders')
+                ->query(fn (Builder $query): Builder => $query->has('cellLeaders')),
+        ];
+    }
+
+    private static function getTableActions(): array
+    {
+        return [
+            Tables\Actions\ViewAction::make(),
+            Tables\Actions\EditAction::make(),
+            Tables\Actions\DeleteAction::make(),
+        ];
+    }
+
+    private static function getTableBulkActions(): array
+    {
+        return [
+            Tables\Actions\BulkActionGroup::make([
+                Tables\Actions\DeleteBulkAction::make(),
+            ]),
+        ];
     }
 
     public static function getRelations(): array
