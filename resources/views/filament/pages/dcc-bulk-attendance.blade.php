@@ -5,13 +5,17 @@
             {{ $this->form }}
         </div>
 
-        <!-- Network Members Section -->
+        <!-- G12 Leader Team Members Section -->
         @if($this->selectedNetwork && $this->attendees->count() > 0)
             <div class="fi-section rounded-xl bg-white shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
                 <div class="fi-section-header flex items-center gap-x-3 overflow-hidden px-6 py-4">
                     <div class="grid flex-1 gap-y-1">
                         <h3 class="fi-section-header-heading text-base font-semibold leading-6 text-gray-950 dark:text-white">
-                            {{ $this->selectedNetwork }} Network Members
+                            @php
+                                $g12Leader = \App\Models\G12Leader::with('churchAttender')->find($this->selectedNetwork);
+                                $leaderName = $g12Leader && $g12Leader->churchAttender ? $g12Leader->churchAttender->full_name : 'Unknown Leader';
+                            @endphp
+                            {{ $leaderName }}'s Team Members
                         </h3>
                         <p class="fi-section-header-description text-sm text-gray-500 dark:text-gray-400">
                             Click on member cards to toggle attendance status. Green = Present, Red = Absent
@@ -136,9 +140,9 @@
             <div class="fi-section rounded-xl bg-white shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
                 <div class="p-6 text-center">
                     <x-heroicon-o-users class="mx-auto h-12 w-12 text-gray-400" />
-                    <h3 class="mt-2 text-sm font-semibold text-gray-900 dark:text-white">No Members Found</h3>
+                    <h3 class="mt-2 text-sm font-semibold text-gray-900 dark:text-white">No Team Members Found</h3>
                     <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                        All members in this network have completed their 4 DCC services or no members are assigned to this network.
+                        All team members under this G12 leader have completed their 4 DCC services or no team members are assigned.
                     </p>
                 </div>
             </div>

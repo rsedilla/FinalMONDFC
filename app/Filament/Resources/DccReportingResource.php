@@ -4,7 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\DccReportingResource\Pages;
 use App\Models\ChurchAttender;
-use App\Models\NetworkLeader;
+use App\Models\G12Leader;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -34,13 +34,19 @@ class DccReportingResource extends Resource
                         Forms\Components\Grid::make(2)
                             ->schema([
                                 Forms\Components\Select::make('network')
-                                    ->label('Network Leader')
+                                    ->label('G12 Leader')
                                     ->options(function () {
-                                        return NetworkLeader::all()->pluck('leader_name', 'leader_name')->toArray();
+                                        return G12Leader::with('churchAttender')->get()
+                                            ->mapWithKeys(function ($g12Leader) {
+                                                $leaderName = $g12Leader->churchAttender ? 
+                                                    $g12Leader->churchAttender->full_name : 
+                                                    'Unknown Leader';
+                                                return [$g12Leader->id => $leaderName];
+                                            })->toArray();
                                     })
                                     ->required()
                                     ->searchable()
-                                    ->placeholder('Select a Network Leader...'),
+                                    ->placeholder('Select a G12 Leader...'),
                                 
                                 Forms\Components\DatePicker::make('service_date')
                                     ->label('Service Date')
@@ -101,11 +107,17 @@ class DccReportingResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                Tables\Filters\SelectFilter::make('network')
-                    ->options([
-                        'mens' => 'Mens',
-                        'womens' => 'Womens'
-                    ]),
+                Tables\Filters\SelectFilter::make('g12_leader')
+                    ->label('G12 Leader')
+                    ->options(function () {
+                        return G12Leader::with('churchAttender')->get()
+                            ->mapWithKeys(function ($g12Leader) {
+                                $leaderName = $g12Leader->churchAttender ? 
+                                    $g12Leader->churchAttender->full_name : 
+                                    'Unknown Leader';
+                                return [$g12Leader->id => $leaderName];
+                            })->toArray();
+                    }),
                 
                 Tables\Filters\Filter::make('has_completed_dcc')
                     ->label('DCC Completed')

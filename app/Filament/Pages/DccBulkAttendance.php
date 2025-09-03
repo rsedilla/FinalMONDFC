@@ -3,7 +3,8 @@
 namespace App\Filament\Pages;
 
 use App\Models\ChurchAttender;
-use App\Models\NetworkLeader;
+use App\Models\G12Leader;
+use App\Models\CellMember;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Pages\Page;
@@ -43,14 +44,20 @@ class DccBulkAttendance extends Page
         return $form
             ->schema([
                 Forms\Components\Section::make('DCC Bulk Attendance Recording')
-                    ->description('Select a network and record attendance for multiple members at once')
+                    ->description('Select a G12 leader and record attendance for their team members at once')
                     ->schema([
                         Forms\Components\Grid::make(2)
                             ->schema([
                                 Forms\Components\Select::make('network')
-                                    ->label('Network Leader')
+                                    ->label('G12 Leader')
                                     ->options(function () {
-                                        return NetworkLeader::all()->pluck('leader_name', 'leader_name')->toArray();
+                                        return G12Leader::with('churchAttender')->get()
+                                            ->mapWithKeys(function ($g12Leader) {
+                                                $leaderName = $g12Leader->churchAttender ? 
+                                                    $g12Leader->churchAttender->full_name : 
+                                                    'Unknown Leader';
+                                                return [$g12Leader->id => $leaderName];
+                                            })->toArray();
                                     })
                                     ->required()
                                     ->searchable()
@@ -59,7 +66,7 @@ class DccBulkAttendance extends Page
                                         $this->selectedNetwork = $state;
                                         $this->loadNetworkMembers();
                                     })
-                                    ->placeholder('Select a Network Leader...'),
+                                    ->placeholder('Select a G12 Leader...'),
                                 
                                 Forms\Components\DatePicker::make('service_date')
                                     ->label('Service Date')
@@ -92,11 +99,29 @@ class DccBulkAttendance extends Page
             return;
         }
 
-        $this->attendees = ChurchAttender::where('network', $this->selectedNetwork)
-            ->whereRaw('(SELECT COUNT(*) FROM sunday_service_completions WHERE sunday_service_completions.church_attender_id = church_attenders.id) < 4')
-            ->with('sundayServiceCompletions')
-            ->orderBy('first_name')
+        // Get the G12 Leader
+        $g12Leader = G12Leader::with(['cellGroup.cellMembers.churchAttender'])->find($this->selectedNetwork);
+        
+        if (!$g12Leader || !$g12Leader->cellGroup) {
+            $this->attendees = collect([]);
+            return;
+        }
+
+        // Get all cell members under this G12 leader's cell group
+        $cellMembers = $g12Leader->cellGroup->cellMembers()
+            ->with(['churchAttender.sundayServiceCompletions'])
             ->get();
+
+        // Filter to only those who need DCC services (< 4 completed)
+        $this->attendees = $cellMembers->filter(function ($cellMember) {
+            if (!$cellMember->churchAttender) {
+                return false;
+            }
+            $completedServices = $cellMember->churchAttender->sundayServiceCompletions()->count();
+            return $completedServices < 4;
+        })->map(function ($cellMember) {
+            return $cellMember->churchAttender;
+        })->sortBy('first_name');
 
         // Initialize attendance data for all members as present
         $this->attendanceData = [];
@@ -203,6 +228,6 @@ class DccBulkAttendance extends Page
 
     public function getSubheading(): ?string
     {
-        return 'Record attendance for multiple members at once by network';
+        return 'Record attendance for team members under G12 leaders';
     }
 }
