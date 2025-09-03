@@ -109,15 +109,15 @@ class DccReportingResource extends Resource
                 
                 Tables\Filters\Filter::make('has_completed_dcc')
                     ->label('DCC Completed')
-                    ->query(fn (Builder $query): Builder => $query->whereHas('sundayServiceCompletions', function ($query) {
-                        $query->havingRaw('COUNT(*) >= 4');
-                    })),
+                    ->query(function (Builder $query): Builder {
+                        return $query->whereRaw('(SELECT COUNT(*) FROM sunday_service_completions WHERE sunday_service_completions.church_attender_id = church_attenders.id) >= 4');
+                    }),
                 
                 Tables\Filters\Filter::make('needs_dcc')
                     ->label('Needs DCC')
-                    ->query(fn (Builder $query): Builder => $query->whereDoesntHave('sundayServiceCompletions', function ($query) {
-                        $query->havingRaw('COUNT(*) >= 4');
-                    })),
+                    ->query(function (Builder $query): Builder {
+                        return $query->whereRaw('(SELECT COUNT(*) FROM sunday_service_completions WHERE sunday_service_completions.church_attender_id = church_attenders.id) < 4');
+                    }),
             ])
             ->actions([
                 Tables\Actions\Action::make('mark_present')
@@ -241,9 +241,7 @@ class DccReportingResource extends Resource
 
     public static function getNavigationBadge(): ?string
     {
-        $pendingCount = static::getModel()::whereHas('sundayServiceCompletions', function ($query) {
-            $query->havingRaw('COUNT(*) < 4');
-        })->orWhereDoesntHave('sundayServiceCompletions')->count();
+        $pendingCount = static::getModel()::whereRaw('(SELECT COUNT(*) FROM sunday_service_completions WHERE sunday_service_completions.church_attender_id = church_attenders.id) < 4')->count();
 
         return $pendingCount > 0 ? (string) $pendingCount : null;
     }

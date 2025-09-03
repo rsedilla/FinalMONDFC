@@ -93,13 +93,7 @@ class DccBulkAttendance extends Page
         }
 
         $this->attendees = ChurchAttender::where('network', $this->selectedNetwork)
-            ->whereHas('sundayServiceCompletions', function ($query) {
-                $query->havingRaw('COUNT(*) < 4');
-            })
-            ->orWhere(function ($query) {
-                $query->where('network', $this->selectedNetwork)
-                      ->whereDoesntHave('sundayServiceCompletions');
-            })
+            ->whereRaw('(SELECT COUNT(*) FROM sunday_service_completions WHERE sunday_service_completions.church_attender_id = church_attenders.id) < 4')
             ->with('sundayServiceCompletions')
             ->orderBy('first_name')
             ->get();
